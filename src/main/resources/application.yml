@@ -16,7 +16,7 @@ spring:
   application:
     name: ats-scheduler-dev
   profiles:
-    active: qa
+    active: dev
   main:
     banner-mode: off
   mvc:
@@ -130,7 +130,7 @@ scheduled:
       cronExpression: "0 0/1 * * * ?"
     assignment:
       enabled: false
-      cronExpression: "0 0 0/1 * * ?"
+      cronExpression: "0 0/5 * * * ?"
 
 jobDiva:
   resumeCount: 100

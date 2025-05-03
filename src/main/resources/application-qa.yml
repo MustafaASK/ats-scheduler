@@ -20,7 +20,7 @@ scheduled:
     job:
       enabled: true
     assignment:
-      enabled: false
+      enabled: true
 
 aws:
   sns:
