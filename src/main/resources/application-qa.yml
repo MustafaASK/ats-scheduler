@@ -7,7 +7,7 @@ spring:
 
 scheduled:
   bullhorn:
-    enabled: false
+    enabled: true
   jobDiva:
     jobAgentSearch:
       enabled: false
@@ -17,9 +17,9 @@ scheduled:
       enabled: false
   agileOne:
     job:
-      enabled: true
+      enabled: false
     assignment:
-      enabled: true
+      enabled: false
 
 aws:
   sns:
