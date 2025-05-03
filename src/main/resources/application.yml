@@ -2,6 +2,10 @@ atsService:
   api:
     url: https://adminapi.cxninja.com/ats-service-qa
 
+server:
+  servlet:
+    context-path: /ats-scheduler-dev
+  port: 8221
 
 eureka:
   instance:

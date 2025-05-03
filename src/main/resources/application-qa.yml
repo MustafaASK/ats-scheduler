@@ -1,3 +1,7 @@
+server:
+  servlet:
+    context-path: /ats-scheduler-qa
+  port: 8222
 
 spring:
   application:
