@@ -1,0 +1,97 @@
+bullhorn:
+  client_id: 123
+  client_secret: test
+  oauth:
+    url: testUrl
+    username: testUser
+    password: test
+    endpoint: /authorize
+    action: Login
+    response_type: code
+  token:
+    endpoint: /token
+    auth_grant_type: authorization_code
+    refresh_grant_type: refresh_token
+  login:
+    endpoint: /login
+    version: "*"
+  rest:
+    url: testUrl
+  candidate:
+    url: testUrl
+    endpoint: /Candidate
+  jobSubmission:
+    endpoint: /JobSubmission
+  file:
+    endpoint: file
+  connectionTimeout: 10
+  readTimeout: 60
+  event:
+    type: entity
+    names: Candidate,JobOrder
+    eventTypes: INSERTED,UPDATED,DELETED
+    maxEvents: 100
+
+aws:
+  region: us-west-2
+  accessKey: accessKey
+  secretKey: accessKey
+  s3:
+    bucketName: test
+    resumeLocation: curately/Sevron/
+  sns:
+    topicArn: "sns_topic"
+    accessKey: accessKey
+    secretKey: accessKey
+
+curatelyAdmin:
+  api:
+    url: https://adminapi.cxninja.com/curatelyAdmin
+
+curatelyDemo:
+  api:
+    url: https://devapi.cxninja.com/QADemoCurately
+
+curately:
+  client:
+    active: 3
+
+spring:
+  application:
+    name: ats-scheduler-dev
+  main:
+    banner-mode: off
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.H2Dialect
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+scheduled:
+  event:
+    cron-expression: 0 0 */6 * * ?
+
+feature:
+  insertWhenEmailAndPhoneNumberNull: true
+
+stripe:
+  apiKey: test
+  initialPrice: price_1
+
+jobDiva:
+  base:
+    url: https://api.jobdiva.com/apiv2
+  login:
+    endpoint: /v2/login
+    clientId: 0
+    username: dummy
+    password: dummy
+    refresh:
+      endpoint: /v2/refreshToken

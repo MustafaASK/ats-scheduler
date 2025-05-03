@@ -1,0 +1,139 @@
+atsService:
+  api:
+    url: https://adminapi.cxninja.com/ats-service-qa
+
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+spring:
+  application:
+    name: ats-scheduler-dev
+  profiles:
+    active: qa
+  main:
+    banner-mode: off
+  mvc:
+    pathmatch:
+      matching-strategy: ANT_PATH_MATCHER
+  datasource:
+    driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    url: jdbc:sqlserver://35.155.202.216:8425;DatabaseName=Curately;encrypt=false;trustServerCertificate=true
+    username: sa
+    password: ${DEV_DB_PASSWORD}
+    initialize: false
+    hikari:
+      pool-name: HikariCP
+      minimum-idle: 5
+      maximum-pool-size: 10
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+      leak-detection-threshold: 15000
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  jpa:
+    hibernate:
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    gateway:
+      globalcors:
+        corsConfigurations:
+          [/**]:
+            allowedOrigins: "*"
+            allowedMethods: GET,POST,PUT,OPTIONS
+            allowCredentials: true
+
+hibernate:
+  dialect: org.hibernate.dialect.SQLServerDialect
+  c3p0:
+    unreturnedConnectionTimeout: 30
+    debugUnreturnedConnectionStackTraces: true
+  show_sql: false
+  format_sql: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+
+aws:
+  region: us-west-2
+  accessKey: ${AWS_ACCESS_KEY_ID}
+  secretKey: ${AWS_SECRET_ACCESS_KEY}
+  s3:
+    bucketName: ova-qatest
+    resumeLocation: curately/Sevron/
+  sns:
+    bullhornTopicArn: arn:aws:sns:us-west-2:068652499116:bullhorn-events-dev
+    jobDivaTopicArn: arn:aws:sns:us-west-2:068652499116:jobdiva-events-dev
+    agileOneTopicArn: arn:aws:sns:us-west-2:068652499116:agileone-events-dev
+    emailOneTopicArn: arn:aws:sns:us-west-2:068652499116:ats-email-topic-dev
+    accessKey: ${AWS_SNS_ACCESS_KEY_ID}
+    secretKey: ${AWS_SNS_SECRET_ACCESS_KEY}
+
+curately:
+  client:
+    active: 3
+  bullhorn:
+    atsId: 20043
+  avionte:
+    atsId: 20045
+  jobDiva:
+    atsId: 20047
+  agileone:
+    atsId: 20055
+  async:
+    corePoolSize: 5
+    maxPoolSize: 10
+    queueCapacity: 15
+
+scheduled:
+  bullhorn:
+    cronExpression: 0 0/5 * * * ?
+    enabled: false
+    recruiter: 2
+  jobDiva:
+    client: 58
+    recruiter: 2
+    jobAgentSearch:
+      enabled: false
+      pageSize: 100
+      cronExpression: "0 0/30 * * * ?"
+    applicants:
+      enabled: false
+      cronExpression: "0 0/30 * * * ?"
+    candidateNotes:
+      enabled: false
+      cronExpression: "0 0/15 * * * ?"
+      pageSize: 100
+  agileOne:
+    client: 55
+    recruiter: 4543
+    job:
+      enabled: true
+      cronExpression: "0 0/1 * * * ?"
+    assignment:
+      enabled: false
+      cronExpression: "0 0 0/1 * * ?"
+
+jobDiva:
+  resumeCount: 100
+
+
+

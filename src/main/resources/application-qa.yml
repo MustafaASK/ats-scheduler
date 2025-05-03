@@ -1,0 +1,30 @@
+
+spring:
+  application:
+    name: ats-scheduler-qa
+  datasource:
+    url: jdbc:sqlserver://44.238.148.232:1433;DatabaseName=Curately;encrypt=false;trustServerCertificate=true
+    password: ${QA_DB_PASSWORD}
+
+scheduled:
+  bullhorn:
+    enabled: false
+  jobDiva:
+    jobAgentSearch:
+      enabled: false
+    applicants:
+      enabled: false
+    candidateNotes:
+      enabled: false
+  agileOne:
+    job:
+      enabled: true
+    assignment:
+      enabled: false
+
+aws:
+  sns:
+    bullhornTopicArn: arn:aws:sns:us-west-2:068652499116:bullhorn-events-qa
+    jobDivaTopicArn: arn:aws:sns:us-west-2:068652499116:jobdiva-events-qa
+    agileOneTopicArn: arn:aws:sns:us-west-2:068652499116:agileone-events-qa
+    emailOneTopicArn: arn:aws:sns:us-west-2:068652499116:ats-email-topic-qa

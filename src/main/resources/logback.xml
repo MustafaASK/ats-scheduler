@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Set the logging level for debugging configuration issues -->
+    <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" />
+
+    <!-- Define the directory and file name pattern for the log files -->
+    <property name="SPRING_APPLICATION_NAME" value="${SPRING_APPLICATION_NAME:-SPRING_APPLICATION_NAME_IS_UNDEFINED}" />
+    <property name="LOG_LEVEL" value="${LOG_LEVEL:-INFO}" />
+    <property name="LOG_PATH" value="${LOG_PATH:-./logs/}" />
+    <property name="LOG_FILE" value="${LOG_PATH}${SPRING_APPLICATION_NAME}.log" />
+    <property name="ARCHIVE_PATH" value="${ARCHIVE_PATH:-./logs/archive/}" />
+    <property name="ARCHIVE_FILE" value="${ARCHIVE_PATH}${SPRING_APPLICATION_NAME}-%d{yyyy-MM-dd}.log" />
+
+    <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}</file>
+
+        <!-- Define the rolling policy for daily log files -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- File pattern for the daily rolling logs -->
+            <fileNamePattern>${ARCHIVE_FILE}</fileNamePattern>
+            <!-- Keep logs for the last 30 days -->
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+
+        <!-- Define the log output pattern -->
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [${SPRING_APPLICATION_NAME},%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [${SPRING_APPLICATION_NAME},%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger configuration -->
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="ROLLING_FILE" />
+    </root>
+</configuration>

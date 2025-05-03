@@ -1,0 +1,39 @@
+atsService:
+  api:
+    url: https://adminapi.curately.ai/ats-service-prod
+
+server:
+  servlet:
+    context-path: /ats-scheduler-prod
+  port: 8206
+
+spring:
+  application:
+    name: ats-scheduler-prod
+  datasource:
+    username: accuickuser
+    url: jdbc:sqlserver://52.32.184.206:51980;DatabaseName=Curately;encrypt=false;trustServerCertificate=true;
+    password: ${PROD_DB_PASSWORD}
+
+aws:
+  s3:
+    bucketName: ovastorage
+    resumeLocation: curately/Sevron/
+  sns:
+    bullhornTopicArn: arn:aws:sns:us-west-2:068652499116:bullhorn-events-prod
+    jobDivaTopicArn: arn:aws:sns:us-west-2:068652499116:jobdiva-events-prod
+
+
+scheduled:
+  bullhorn:
+    enabled: false
+  jobDiva:
+    client: 54
+    recruiter: 2
+    jobAgentSearch:
+      cronExpression: "0 0/10 * * * ?"
+      enabled: false
+    applicants:
+      enabled: true
+
+
