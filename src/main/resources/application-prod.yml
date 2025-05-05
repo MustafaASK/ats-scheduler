@@ -2,11 +2,6 @@ atsService:
   api:
     url: https://adminapi.curately.ai/ats-service-prod
 
-server:
-  servlet:
-    context-path: /ats-scheduler-prod
-  port: 8206
-
 spring:
   application:
     name: ats-scheduler-prod
@@ -22,18 +17,34 @@ aws:
   sns:
     bullhornTopicArn: arn:aws:sns:us-west-2:068652499116:bullhorn-events-prod
     jobDivaTopicArn: arn:aws:sns:us-west-2:068652499116:jobdiva-events-prod
+    agileOneTopicArn: arn:aws:sns:us-west-2:068652499116:agileone-events-prod
+    emailOneTopicArn: arn:aws:sns:us-west-2:068652499116:ats-email-topic-prod
 
 
 scheduled:
   bullhorn:
-    enabled: false
+    enabled: true
+    cronExpression: 0 0/5 * * * ?
   jobDiva:
     client: 54
     recruiter: 2
     jobAgentSearch:
-      cronExpression: "0 0/10 * * * ?"
-      enabled: false
+      cronExpression: "0 0/5 * * * ?"
+      enabled: true
     applicants:
       enabled: true
+      cronExpression: "0 */15 * * * ?"
+    candidateNotes:
+      enabled: true
+      cronExpression: "0 0/15 * * * ?"
+  agileOne:
+    recruiter: 3761
+    job:
+      enabled: true
+      cronExpression: "0 */30 * * * ?"
+    assignment:
+      enabled: true
+      cronExpression: "0 */25 * * * ?"
 
-
+jobDiva:
+  resumeCount: 300
