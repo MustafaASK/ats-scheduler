@@ -115,13 +115,13 @@ scheduled:
     jobAgentSearch:
       enabled: true
       pageSize: 100
-      cronExpression: "0 0/2 * * * ?"
+      cronExpression: "0 0/30 * * * ?"
     applicants:
       enabled: true
-      cronExpression: "0 0/5 * * * ?"
+      cronExpression: "0 0/30 * * * ?"
     candidateNotes:
       enabled: true
-      cronExpression: "0 0/1 * * * ?"
+      cronExpression: "0 0/10 * * * ?"
       pageSize: 100
   agileOne:
     client: 55
