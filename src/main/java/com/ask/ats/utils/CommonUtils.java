@@ -35,6 +35,7 @@ public class CommonUtils {
             Class<?> clazz = Class.forName("com.ask.ats.model." + entityName);
             return Stream.of(clazz.getDeclaredFields())
                     .map(Field::getName)
+                    .filter(name -> !name.equalsIgnoreCase("isDoProcessManual"))
                     .toList();
         } catch (ClassNotFoundException e) {
             log.error("Model class for getting fields not found for entity: {}", entityName, e);
@@ -54,6 +55,7 @@ public class CommonUtils {
             Class<?> clazz = Class.forName("com.ask.ats.model." + entityName);
             return Stream.of(clazz.getDeclaredFields())
                     .map(Field::getName)
+                    .filter(name -> !name.equalsIgnoreCase("isDoProcessManual"))
                     .collect(Collectors.joining(","));
         } catch (ClassNotFoundException e) {
             log.error("Model class for getting fields not found for entity: {}", entityName, e);

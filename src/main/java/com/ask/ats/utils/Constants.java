@@ -16,7 +16,6 @@ public final class Constants {
     public static final String CANDIDATE = "Candidate";
     public static final String TEARSHEET = "Tearsheet";
     public static final String SUBMISSION = "JobSubmission";
-    public static final String DRAFT_SUBMISSION = "DraftSubmission";
     public static final String CURATELY = "Curately_";
     public static final String JOB_DIVA = "JobDiva";
     public static final String JOB_DETAIL = "JobsDetail";
