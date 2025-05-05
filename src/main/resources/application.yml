@@ -107,20 +107,20 @@ curately:
 scheduled:
   bullhorn:
     cronExpression: 0 0/5 * * * ?
-    enabled: false
+    enabled: true
     recruiter: 2
   jobDiva:
     client: 58
     recruiter: 2
     jobAgentSearch:
-      enabled: false
+      enabled: true
       pageSize: 100
       cronExpression: "0 0/30 * * * ?"
     applicants:
-      enabled: false
+      enabled: true
       cronExpression: "0 0/30 * * * ?"
     candidateNotes:
-      enabled: false
+      enabled: true
       cronExpression: "0 0/15 * * * ?"
       pageSize: 100
   agileOne:
@@ -131,7 +131,7 @@ scheduled:
       cronExpression: "0 0/1 * * * ?"
     assignment:
       enabled: false
-      cronExpression: "0 0/5 * * * ?"
+      cronExpression: "0 0/1 * * * ?"
 
 jobDiva:
   resumeCount: 100

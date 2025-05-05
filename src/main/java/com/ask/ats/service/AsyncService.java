@@ -560,10 +560,5 @@ public class AsyncService {
         });
     }
 
-
-//    public void getListEvent(int clientId, int recruiterId){
-//        clientService.fetchListOfEvents(clientId, recruiterId);
-//    }
-
 }
 

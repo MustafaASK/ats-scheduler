@@ -2,6 +2,7 @@ package com.ask.ats.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -40,11 +41,15 @@ public class JobOrder {
     private String reportTo;
     private ClientContact reportToClientContact;
     private ClientContact responseUser;
+    private String salaryUnit;
     private String source;
     private Long startDate;
     private String status;
     private String taxStatus;
     private String title;
-
+    private User owner;
+    private ToManyEntityAssociation<User> assignedUsers;
+    private Boolean isDoProcessManual;
+    private ToManyEntityAssociation<JobSubmission> submissions;
 }
 

@@ -145,4 +145,8 @@ public class CommonUtils {
         log.error("Invalid response from Job diva while fetching {}, client {} : {}", entityName, clientId, response);
     }
 
+    public static boolean isNullOrEmpty(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
 }

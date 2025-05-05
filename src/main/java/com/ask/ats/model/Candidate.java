@@ -2,14 +2,18 @@ package com.ask.ats.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * The type Candidate.
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Candidate {
 
@@ -51,6 +55,9 @@ public class Candidate {
     private Boolean workAuthorized;
     private Boolean massMailOptOut;
     private Boolean smsOptIn;
+    private User owner;
+    private ToManyEntityAssociation<User> secondaryOwners;
+    private Boolean isDoProcessManual;
 
 }
 

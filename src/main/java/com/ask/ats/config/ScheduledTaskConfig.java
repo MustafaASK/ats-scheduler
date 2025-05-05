@@ -120,7 +120,7 @@ public class ScheduledTaskConfig implements SchedulingConfigurer {
             log.info("Scheduled task started to process bullhorn events.");
             List<Integer> clientIds = curatelyRepository.fetchClientIdsByAts(bullhornAtsId);
             clientIds.forEach(clientId -> {
-                clientService.fetchListOfEvents(clientId, bullhornRecruiter);
+                clientService.getListEvent(clientId, bullhornRecruiter);
             });
             log.info("Scheduled task completed to process bullhorn events.");
         } catch (DataAccessException e) {

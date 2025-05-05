@@ -7,11 +7,13 @@ import com.ask.ats.model.GenericResponse;
 import com.ask.ats.model.jobdiva.CandidateNotesListResponse;
 import com.ask.ats.model.jobdiva.GetResponse;
 import com.ask.ats.publisher.BullhornEventPublisher;
+import com.ask.ats.repository.CuratelyRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
@@ -34,11 +36,16 @@ public class ClientService {
     @Value("${atsService.api.url}")
     private String atsServiceApiUrl;
 
+    @Value("${scheduled.jobDiva.candidateNotes.pageSize}")
+    private int candidateNotesPageSize;
+
 
     private final RestTemplate restTemplate;
     private final GlobalExceptionHandler exceptionHandler;
     private final ObjectMapper objectMapper;
     private final BullhornEventPublisher bullhornEventPublisher;
+    private final CuratelyRepository curatelyRepository;
+
 
 
     /**
@@ -49,11 +56,12 @@ public class ClientService {
      * @param objectMapper           the object mapper
      * @param bullhornEventPublisher the bullhorn event publisher
      */
-    public ClientService(RestTemplate restTemplate, GlobalExceptionHandler exceptionHandler, ObjectMapper objectMapper, BullhornEventPublisher bullhornEventPublisher) {
+    public ClientService(RestTemplate restTemplate, GlobalExceptionHandler exceptionHandler, ObjectMapper objectMapper, BullhornEventPublisher bullhornEventPublisher, CuratelyRepository curatelyRepository) {
         this.restTemplate = restTemplate;
         this.exceptionHandler = exceptionHandler;
         this.objectMapper = objectMapper;
         this.bullhornEventPublisher = bullhornEventPublisher;
+        this.curatelyRepository = curatelyRepository;
     }
 
 
@@ -272,7 +280,7 @@ public class ClientService {
      * @return the new updated candidate notes
      */
     public <T> ResponseEntity<GenericResponse<List<T>>> getNewUpdatedCandidateNotes(int clientId, String fromDate, String toDate, int pageNumber) {
-        String apiUrl = "%s/jobDiva/getNewUpdatedCandidateNotes/%d?fromDate=%s&toDate=%s&pageNumber=%s".formatted(atsServiceApiUrl, clientId, fromDate, toDate, pageNumber);
+        String apiUrl = "%s/jobDiva/getNewUpdatedCandidateNotes/%d?fromDate=%s&toDate=%s&pageNumber=%s&candidateNotesPageSize=%s".formatted(atsServiceApiUrl, clientId, fromDate, toDate, pageNumber,candidateNotesPageSize);
         try {
             ResponseEntity<GetResponse<T>> response = restTemplate.exchange(apiUrl, HttpMethod.GET,
                     null, new ParameterizedTypeReference<>() {
@@ -299,6 +307,13 @@ public class ClientService {
     }
 
 
+
+    public void getListEvent(int clientId, int recruiterId) throws DataAccessException {
+        String subscriptionId = curatelyRepository.getActiveSubscriptionId(clientId, recruiterId);
+        if (!subscriptionId.isBlank()) {
+            fetchListOfEvents(subscriptionId, clientId, recruiterId);
+        }
+    }
     /**
      * Fetch list of events response entity.
      *
@@ -306,31 +321,38 @@ public class ClientService {
      * @param recruiterId the recruiter id
      * @return the response entity
      */
-    public ResponseEntity<GenericResponse<EventResponse>> fetchListOfEvents(int clientId, int recruiterId) {
+    public ResponseEntity<GenericResponse<EventResponse>> fetchListOfEvents(String subscriptionId, int clientId, int recruiterId) {
         try {
-            String apiUrl = "%s/bullhorn/getListOfEvents/%d?recruiterId=%s".formatted(atsServiceApiUrl, clientId, recruiterId);
+            String apiUrl = "%s/bullhorn/getListOfEvents/%d?subscriptionId=%s".formatted(atsServiceApiUrl, clientId, subscriptionId);
 
-            ResponseEntity<EventResponse> response = restTemplate.exchange(
-                    apiUrl, HttpMethod.GET, null, new ParameterizedTypeReference<EventResponse>() {
+            ResponseEntity<GenericResponse<EventResponse>> response = restTemplate.exchange(
+                    apiUrl, HttpMethod.GET, null, new ParameterizedTypeReference<>() {
                     });
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null && response.getBody().getEvents() != null
-                    && !response.getBody().getEvents().isEmpty()) {
-
-                EventResponse eventResponse = response.getBody();
-
+            Integer requestId = null;
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null
+                    && response.getBody().getData() != null) {
+                EventResponse eventResponse = response.getBody().getData();
+                requestId = eventResponse.getRequestId();
                 List<EventResponse.Event> events = eventResponse.getEvents();
+                int eventsCount = events.size();
+                String jsonEvents = objectMapper.writeValueAsString(events);
 
+                curatelyRepository.insertEventSubscriptionList(subscriptionId, eventResponse.getRequestId(), eventsCount,
+                        jsonEvents, clientId, Boolean.FALSE);
                 if (!events.isEmpty()) {
-                    bullhornEventPublisher.processEventsAsync(events, clientId);
+                    bullhornEventPublisher.processEventsAsync(events, clientId, recruiterId);
+                    curatelyRepository.updateEventSubscriptionList(subscriptionId, clientId, requestId);
                 }
 
+                log.info("Successfully fetched events: Subscription ID = {}, Request ID = {}, Events Count = {}",
+                        subscriptionId, requestId, eventsCount);
                 return buildCuratelyResponse(response.getStatusCode(), eventResponse,
                         objectMapper.writeValueAsString(response), "Successfully fetched the latest events",
                         Boolean.TRUE);
             } else {
-                log.info("No new events found: Subscription ID = {}", response.getBody());
-                return buildCuratelyResponse(response.getStatusCode(), response.getBody(),
+                log.info("No new events found: Subscription ID = {}, Request ID = {}, Response = {}", subscriptionId,
+                        requestId, response.getBody());
+                return buildCuratelyResponse(response.getStatusCode(), Objects.requireNonNull(response.getBody()).getData(),
                         objectMapper.writeValueAsString(response),
                         "No new events available for the given subscription and request ID", Boolean.TRUE);
             }

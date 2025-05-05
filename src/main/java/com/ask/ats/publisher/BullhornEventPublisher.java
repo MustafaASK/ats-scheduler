@@ -1,6 +1,5 @@
 package com.ask.ats.publisher;
 
-import com.ask.ats.config.ScheduledTaskConfig;
 import com.ask.ats.model.*;
 import com.ask.ats.service.ClientService;
 import com.ask.ats.utils.CommonUtils;
@@ -8,13 +7,28 @@ import com.ask.ats.utils.Constants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.beans.IntrospectionException;
+import java.beans.PropertyDescriptor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.sns.SnsClient;
@@ -22,10 +36,7 @@ import software.amazon.awssdk.services.sns.model.PublishBatchRequest;
 import software.amazon.awssdk.services.sns.model.PublishBatchRequestEntry;
 import software.amazon.awssdk.services.sns.model.PublishBatchResponse;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
-import static com.ask.ats.utils.Constants.BULLHORN;
+import static com.ask.ats.utils.Constants.*;
 
 
 /**
@@ -35,60 +46,39 @@ import static com.ask.ats.utils.Constants.BULLHORN;
 @Service
 public class BullhornEventPublisher {
 
-    private final ClientService clientService;
-    private final Map<String, List<Integer>> entityIdMap = new HashMap<>();
-    private Integer maxId = 0;
-    private final Map<String, Integer> maxIdMap = new HashMap<>();
+    private final ClientService entityService;
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final SnsClient snsClient;
     private final ObjectMapper objectMapper;
+    private static final String requiredFieldsConfig = "title,description,onSite";
 
     @Value("${aws.sns.bullhornTopicArn}")
     private String snsTopicArn;
 
-
-    public BullhornEventPublisher(@Lazy ClientService clientService, NamedParameterJdbcTemplate jdbcTemplate,
+    /**
+     * Instantiates a new Async event processor service.
+     *
+     * @param entityService the entity service
+     * @param jdbcTemplate  the jdbc template
+     * @param snsClient     the sns client
+     * @param objectMapper  the object mapper
+     */
+    public BullhornEventPublisher(@Lazy ClientService entityService, NamedParameterJdbcTemplate jdbcTemplate,
                                   SnsClient snsClient, ObjectMapper objectMapper) {
-        this.clientService = clientService;
+        this.entityService = entityService;
         this.jdbcTemplate = jdbcTemplate;
         this.snsClient = snsClient;
         this.objectMapper = objectMapper;
     }
 
-
-
-    public void processEventsAsync(List<EventResponse.Event> events, int clientId) {
+    /**
+     * Process events async.
+     *
+     * @param events   the events
+     * @param clientId the client id
+     */
+    public void processEventsAsync(List<EventResponse.Event> events, int clientId, int recruiterId) {
         log.info("Asynchronously processing {} events", events.size());
-        String query = "SELECT ua.autoid AS id, ua.atsvalue AS entityId, 'Candidate' AS entityName "
-                + "FROM DB_NAME.dbo.user_ats ua WHERE ua.autoid > :userMaxId AND ua.atsname = :atsName "
-                + "UNION ALL "
-                + "SELECT ja.autoid AS id, ja.atsvalue AS entityId, 'JobOrder' AS entityName "
-                + "FROM DB_NAME.dbo.job_ats ja WHERE ja.autoid > :jobMaxId AND ja.atsname = :atsName "
-                + "UNION ALL "
-                + "SELECT ta.autoid AS id, ta.atsvalue AS entityId, 'Tearsheet' AS entityName "
-                + "FROM DB_NAME.dbo.talentpool_ats ta WHERE ta.autoid > :poolMaxId AND ta.atsname = :atsName "
-                + "UNION ALL "
-                + "SELECT oa.autoid AS id, oa.atsvalue AS entityId, 'JobSubmission' AS entityName "
-                + "FROM DB_NAME.dbo.openresumes_ats oa WHERE oa.autoid > :openMaxId AND oa.atsname = :atsName";
-
-        MapSqlParameterSource parameterSource = new MapSqlParameterSource()
-                .addValue("userMaxId", maxIdMap.getOrDefault("userMaxId", 0))
-                .addValue("jobMaxId", maxIdMap.getOrDefault("jobMaxId", 0))
-                .addValue("poolMaxId", maxIdMap.getOrDefault("poolMaxId", 0))
-                .addValue("openMaxId", maxIdMap.getOrDefault("openMaxId", 0))
-                .addValue("atsName", BULLHORN);
-        jdbcTemplate.query(query.replace("DB_NAME", "Curately_" + clientId), parameterSource,
-                (rs, rowNum) -> {
-                    String entityName = rs.getString("entityName").trim();
-                    int id = rs.getInt("id");
-                    int entityId = rs.getInt("entityId");
-                    String key = getKeyByEntityName(entityName);
-                    maxIdMap.put(key, Math.max(maxIdMap.getOrDefault(key, 0), id));
-                    entityIdMap.computeIfAbsent(entityName, k -> new ArrayList<>()).add(entityId);
-                    return null;
-                }
-        );
-
         Map<String, List<EventResponse.Event>> groupedEventsByName = events.stream()
                 .collect(Collectors.groupingBy(EventResponse.Event::getEntityName));
 
@@ -101,9 +91,12 @@ public class BullhornEventPublisher {
                             event -> event.getEntityId() + "-" + event.getEntityEventType(),
                             event -> {
                                 List<String> updatedProperties = event.getUpdatedProperties();
-                                return updatedProperties != null
-                                        ? updatedProperties
-                                        : CommonUtils.getAllFieldsAsList(event.getEntityName());
+                                if (updatedProperties != null) {
+                                    Set<String> updatedSet = new HashSet<>(fetchUserProperties(entityName));
+                                    updatedSet.addAll(updatedProperties);
+                                    return new ArrayList<>(updatedSet);
+                                }
+                                return CommonUtils.getAllFieldsAsList(event.getEntityName());
                             }
                     ));
             Map<String, Map<String, List<Integer>>> entityIdMetadataMap = eventsByName.stream()
@@ -114,26 +107,18 @@ public class BullhornEventPublisher {
                                     + entry.getValue().get(0).getEntityEventType(),
                             entry -> buildAddedOrRemovedIdMap(entry.getValue())
                     ));
-            processEventEntity(entityIdFieldsMap, entityName, clientId, entityIdMetadataMap);
+            processEventEntity(entityIdFieldsMap, entityName, clientId, entityIdMetadataMap, Boolean.FALSE, recruiterId, Collections.emptyMap());
         });
     }
 
-    private String getKeyByEntityName(String entityName) {
-        switch (entityName) {
-            case Constants.CANDIDATE -> {
-                return "userMaxId";
-            }
-            case Constants.JOB_ORDER -> {
-                return "jobMaxId";
-            }
-            case Constants.TEARSHEET -> {
-                return "poolMaxId";
-            }
-            case Constants.SUBMISSION -> {
-                return "openMaxId";
-            }
-            default -> throw new IllegalStateException("Unexpected value: " + entityName);
-        }
+    private List<String> fetchUserProperties(String entityName) {
+        return switch (entityName) {
+            case JOB_ORDER -> List.of("assignedUsers", "owner");
+            case CANDIDATE -> List.of("owner", "secondaryOwners");
+            case SUBMISSION -> List.of("owners", "sendingUser");
+            case TEARSHEET -> List.of("owner");
+            default -> Collections.emptyList();
+        };
     }
 
     private EventResponse.Event buildEntityIdFieldsMap(List<EventResponse.Event> events, String entityName) {
@@ -190,13 +175,13 @@ public class BullhornEventPublisher {
      * @param entityIdMetadataMap the entity id metadata map
      * @return the response entity
      */
-    public <T> ResponseEntity<GenericResponse<Object>> processEventEntity(
+    public <T> ValidationResult processEventEntity(
             Map<String, List<String>> entityIdFieldsMap, String entityName, int clientId,
-            Map<String, Map<String, List<Integer>>> entityIdMetadataMap) {
+            Map<String, Map<String, List<Integer>>> entityIdMetadataMap, boolean manualProcess, int recruiterId, Map<String, String> missingFields) {
+        ValidationResult validationResult = null;
         if (entityIdFieldsMap.isEmpty()) {
             log.error("Ats values are empty in the request for {}, client {}", entityName, clientId);
-            return CommonUtils.buildCuratelyResponse(HttpStatus.BAD_REQUEST, null, null,
-                    "Entity ids map is mandatory to process", Boolean.FALSE);
+            return validationResult;
         }
 
         Map<Integer, String> entityIdEventTypeMap = entityIdFieldsMap.keySet().stream()
@@ -213,37 +198,48 @@ public class BullhornEventPublisher {
         log.info("Started processEventEntity for {} {}, client {}", entityName, entityIds, clientId);
 
         String fields = CommonUtils.getAllFields(entityName);
-        if (entityName.equalsIgnoreCase(Constants.SUBMISSION)) {
-            fields = fields.replace("candidate", "candidate(%s)"
-                    .formatted(CommonUtils.getAllFields(Constants.CANDIDATE)));
-            fields = fields.replace("jobOrder", "jobOrder(%s)"
-                    .formatted(CommonUtils.getAllFields(Constants.JOB_ORDER)));
-        }
-        ResponseEntity<GenericResponse<T>> responseEntity = clientService.getMultipleEntities(
+        ResponseEntity<GenericResponse<T>> responseEntity = entityService.getMultipleEntities(
                 String.join(",", entityIds), entityName, clientId, fields,
                 entityIdFieldsMap.size(), 0);
         if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.hasBody()) {
             GenericResponse<T> body = responseEntity.getBody();
             if (body != null && body.getData() != null) {
-                Boolean isSuccess = processEvents(entityIdFieldsMap, entityName, clientId, body.getData(),
-                        entityIdEventTypeMap, entityIdMetadataMap);
+                T payload = body.getData();
+                if(entityName.equals(JOB_ORDER) && entityIds.size() == 1 && manualProcess){
+                    JobOrder job = objectMapper.convertValue(payload, JobOrder.class);
+                    validationResult = validateAndBuildJob(job, missingFields);
+                    if (Boolean.FALSE.equals(validationResult.getIsValidJob())){
+                        return validationResult;
+                    }
+                    LinkedHashMap<String,Object> jobMap = objectMapper.convertValue(
+                            job,
+                            new TypeReference<>() {
+                            }
+                    );
+                    payload = (T) jobMap;
+                }
+
+                Boolean isSuccess = processEvents(entityIdFieldsMap, entityName, clientId, payload,
+                        entityIdEventTypeMap, entityIdMetadataMap, manualProcess, recruiterId);
                 if (Boolean.TRUE.equals(isSuccess)) {
                     log.info("Success publishing messages of {}, client {} to Bullhorn sns topic", entityName,
                             clientId);
-                    return CommonUtils.buildCuratelyResponse(HttpStatus.OK, null,
-                            null, "Fetching entities from Bullhorn to Curately asynchronously",
-                            Boolean.TRUE);
+                    return ValidationResult.builder()
+                            .isValidJob(Boolean.TRUE)
+                            .build();
                 }
             }
         }
+
         log.info("Error publishing messages of {}, client {} to Bullhorn sns topic", entityName, clientId);
-        return CommonUtils.buildCuratelyResponse(HttpStatus.INTERNAL_SERVER_ERROR, null,
-                responseEntity.toString(), "Failed to pull entities from Bullhorn to Curately", Boolean.FALSE);
+        return ValidationResult.builder()
+                .isValidJob(Boolean.FALSE)
+                .build();
     }
 
     private <T> Boolean processEvents(Map<String, List<String>> entityIdFieldsMap, String entityName,
                                       int clientId, T data, Map<Integer, String> entityIdEventTypeMap,
-                                      Map<String, Map<String, List<Integer>>> entityIdMetadataMap) {
+                                      Map<String, Map<String, List<Integer>>> entityIdMetadataMap, boolean manualProcess, int recruiterId) {
         log.info("Started publishing {} {} entities for client {} as events to bullhorn sns topic", entityName,
                 entityIdEventTypeMap.keySet(), clientId);
         Map<Integer, String> dataMap = new HashMap<>();
@@ -251,12 +247,16 @@ public class BullhornEventPublisher {
         try {
             if (data instanceof List<?>) {
                 for (Object o : (List<?>) data) {
-                    entityId = (int) ((LinkedHashMap<?, ?>) o).get("id");
-                    dataMap.put(entityId, objectMapper.writeValueAsString(o));
+                    LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>) o;
+                    entityId = (int) linkedHashMap.get("id");
+                    linkedHashMap.put("isDoProcessManual", manualProcess);
+                    dataMap.put(entityId, objectMapper.writeValueAsString(linkedHashMap));
                 }
             } else {
-                entityId = (int) ((LinkedHashMap<?, ?>) data).get("id");
-                dataMap.put(entityId, objectMapper.writeValueAsString(data));
+                LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>) data;
+                entityId = (int) linkedHashMap.get("id");
+                linkedHashMap.put("isDoProcessManual", manualProcess);
+                dataMap.put(entityId, objectMapper.writeValueAsString(linkedHashMap));
             }
         } catch (JsonProcessingException e) {
             log.error("Error converting {} entity {} data to json string", entityName, entityId, e);
@@ -296,6 +296,7 @@ public class BullhornEventPublisher {
                     .updatedFields(String.join(",", updatedProperties))
                     .metadata(metadata)
                     .atsName(BULLHORN)
+                    .recruiterId(recruiterId)
                     .build();
 
             String message = convertModelToString(snsEvent);
@@ -319,6 +320,57 @@ public class BullhornEventPublisher {
         }
         return true;
     }
+
+    private final Map<String, PropertyDescriptor> propertyDescriptorCache = Arrays.stream(requiredFieldsConfig.split(","))
+            .collect(Collectors.toMap(field -> field, field -> {
+                try {
+                    return new PropertyDescriptor(field, JobOrder.class);
+                } catch (IntrospectionException e) {
+                    log.error("Error initializing property descriptor for field: {}", field, e);
+                    return null;
+                }
+            }));
+
+    public ValidationResult validateAndBuildJob(JobOrder job, Map<String, String> incomingValues) {
+        log.info("Started validating JobsDetail {} from Bullhorn for voice ai fields", job.getId());
+        boolean isValid = true;
+        Map<String, String> missingFields = new HashMap<>();
+
+        for (Map.Entry<String, PropertyDescriptor> entry : propertyDescriptorCache.entrySet()) {
+            String field = entry.getKey();
+            PropertyDescriptor propertyDescriptor = entry.getValue();
+            Method getter = propertyDescriptor.getReadMethod();
+            Method setter = propertyDescriptor.getWriteMethod();
+
+            try {
+                if (getter != null) {
+                    String modelValue = (String) getter.invoke(job);
+                    String incomingValue = incomingValues != null ? incomingValues.get(field) : null;
+                    if (CommonUtils.isNullOrEmpty(incomingValue)) {
+                        if (CommonUtils.isNullOrEmpty(modelValue)) {
+                            isValid = false;
+                            missingFields.put(field, "");
+                        } else {
+                            missingFields.put(field, modelValue);
+                        }
+                    } else {
+                        if (setter != null) {
+                            setter.invoke(job, incomingValue);
+                        }
+                        missingFields.put(field, incomingValue);
+                    }
+                }
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                log.error("Error processing field: {}", field, e);
+            }
+        }
+
+        return ValidationResult.builder()
+                .isValidJob(isValid)
+                .missingFields(missingFields)
+                .build();
+    }
+
 
     /**
      * Perform tear sheet update build map.
@@ -372,7 +424,7 @@ public class BullhornEventPublisher {
     private List<Candidate> processAddedIds(List<Integer> addedIds, int clientId, String fields) {
         List<Candidate> candidates = new ArrayList<>();
         try {
-            ResponseEntity<GenericResponse<Object>> responseEntity = clientService.getMultipleEntities(
+            ResponseEntity<GenericResponse<Object>> responseEntity = entityService.getMultipleEntities(
                     StringUtils.join(addedIds, ","), Constants.CANDIDATE, clientId, fields,
                     addedIds.size(), 0);
 
@@ -381,8 +433,7 @@ public class BullhornEventPublisher {
                 if (body != null && body.getData() != null) {
                     if (body.getData() instanceof List) {
                         candidates = objectMapper.convertValue(body.getData(),
-                                new TypeReference<List<Candidate>>() {
-                                });
+                                new TypeReference<List<Candidate>>() {});
                     } else {
                         Candidate candidate = objectMapper.convertValue(body.getData(), Candidate.class);
                         candidates.add(candidate);
@@ -412,8 +463,10 @@ public class BullhornEventPublisher {
                 .name(baseTearsheet.getName())
                 .owner(baseTearsheet.getOwner())
                 .recipients(baseTearsheet.getRecipients())
+                .isDoProcessManual(baseTearsheet.getIsDoProcessManual())
                 .build();
     }
+
 
 
     private void publishBatch(List<PublishBatchRequestEntry> publishBatchRequestEntries) {
@@ -433,6 +486,5 @@ public class BullhornEventPublisher {
         }
         return null;
     }
-
 
 }

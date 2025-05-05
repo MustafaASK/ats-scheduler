@@ -35,8 +35,9 @@ public class Tearsheet {
 
     private String name;
 
-    private EntityAssociation owner;
+    private User owner;
 
     private ToManyEntityAssociation recipients;
 
+    private Boolean isDoProcessManual;
 }

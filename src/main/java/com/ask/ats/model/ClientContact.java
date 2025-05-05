@@ -29,7 +29,7 @@ public class ClientContact {
     private EntityAssociation category;
     private ToManyEntityAssociation categories;
 
-    private List<String> certifications;
+    private String certifications;
 
     private EntityAssociation clientCorporation;
 

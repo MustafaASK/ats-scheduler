@@ -276,4 +276,47 @@ public class CuratelyRepository {
         }
     }
 
+    public void insertEventSubscriptionList(String subscriptionId, Integer requestId,
+                                            int eventCount, String eventsJson, int clientId, Boolean eventStatus) {
+        String sql = "INSERT INTO DB_NAME.dbo.SubscriptionListEvents (subscriptionId, requestId, "
+                + "eventsCount, eventStatus, json) VALUES (?, ?, ?, ?, ?)";
+        int rowsAffected = jdbcTemplate.update(replaceDbName(clientId, sql), subscriptionId, requestId, eventCount,
+                eventStatus, eventsJson);
+        if (rowsAffected > 0) {
+            log.info("Subscription {} events list inserted successfully for request {}, client {}", subscriptionId,
+                    requestId, clientId);
+        } else {
+            log.error("Error inserting subscription {} events list for request {}, client {}", subscriptionId,
+                    requestId, clientId);
+        }
+    }
+
+
+    public void updateEventSubscriptionList(String subscriptionId, int clientId, int requestId)
+            throws DataAccessException {
+        String sql = "UPDATE DB_NAME.dbo.SubscriptionListEvents SET eventStatus = 1, updatedDate = GETDATE() "
+                + "WHERE subscriptionId = ? AND requestId = ?";
+
+        int rowsAffected = jdbcTemplate.update(replaceDbName(clientId, sql), subscriptionId, requestId);
+        if (rowsAffected > 0) {
+            log.info("Subscription {} events list updated successfully for request {}, client {}", subscriptionId,
+                    requestId, clientId);
+        } else {
+            log.error("Error updating subscription {} events list for request {}, client {}", subscriptionId,
+                    requestId, clientId);
+        }
+    }
+
+    public String getActiveSubscriptionId(int clientId, int recruiterId) throws DataAccessException {
+        String sql = "SELECT TOP 1 subscriptionId FROM DB_NAME.dbo.SubscriptionEvent WHERE recruiterId = ? "
+                + "AND subscriptionStatus = 1 ORDER BY id DESC";
+        try {
+            return jdbcTemplate.queryForObject(replaceDbName(clientId, sql), String.class, recruiterId);
+        } catch (EmptyResultDataAccessException e) {
+            log.info("No active subscription found for recruiter {} in client {}", recruiterId, clientId);
+            return "";
+        }
+    }
+
+
 }
