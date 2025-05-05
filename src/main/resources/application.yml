@@ -115,23 +115,23 @@ scheduled:
     jobAgentSearch:
       enabled: true
       pageSize: 100
-      cronExpression: "0 0/30 * * * ?"
+      cronExpression: "0 0/2 * * * ?"
     applicants:
       enabled: true
-      cronExpression: "0 0/30 * * * ?"
+      cronExpression: "0 0/5 * * * ?"
     candidateNotes:
       enabled: true
-      cronExpression: "0 0/15 * * * ?"
+      cronExpression: "0 0/3 * * * ?"
       pageSize: 100
   agileOne:
     client: 55
     recruiter: 4543
     job:
       enabled: true
-      cronExpression: "0 0/1 * * * ?"
+      cronExpression: "0 0 0/1 * * ?"
     assignment:
       enabled: true
-      cronExpression: "0 0/1 * * * ?"
+      cronExpression: "0 0 0/1 * * ?"
 
 jobDiva:
   resumeCount: 100
