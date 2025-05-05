@@ -17,9 +17,9 @@ scheduled:
       enabled: false
   agileOne:
     job:
-      enabled: false
+      enabled: true
     assignment:
-      enabled: false
+      enabled: true
 
 aws:
   sns:

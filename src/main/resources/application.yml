@@ -130,7 +130,7 @@ scheduled:
       enabled: true
       cronExpression: "0 0/1 * * * ?"
     assignment:
-      enabled: false
+      enabled: true
       cronExpression: "0 0/1 * * * ?"
 
 jobDiva:
