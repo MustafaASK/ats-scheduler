@@ -121,7 +121,7 @@ scheduled:
       cronExpression: "0 0/5 * * * ?"
     candidateNotes:
       enabled: true
-      cronExpression: "0 0/3 * * * ?"
+      cronExpression: "0 0/1 * * * ?"
       pageSize: 100
   agileOne:
     client: 55

@@ -10,9 +10,9 @@ scheduled:
     enabled: true
   jobDiva:
     jobAgentSearch:
-      enabled: true
+      enabled: false
     applicants:
-      enabled: true
+      enabled: false
     candidateNotes:
       enabled: true
   agileOne:
