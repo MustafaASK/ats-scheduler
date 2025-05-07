@@ -311,7 +311,8 @@ public class JobDivaPublisher {
 
     public <T> Map<String, List<String>> fetchUpdatedCandidateNotes(int clientId, Timestamp fromDate, Date toDate)
             throws DataAccessException {
-        String formattedFromDate = formatDate(fromDate);
+        Date adjustedDate = adjustFromDate(toDate,fromDate);
+        String formattedFromDate = formatDate(adjustedDate);
         String formattedToDate = formatDate(toDate);
 
         int pageNumber = 1;
@@ -354,6 +355,25 @@ public class JobDivaPublisher {
         return fromDate;
     }
 
+
+    private Timestamp adjustFromDate(Date toDate, Timestamp fromDate) {
+        Calendar fromDateCal = Calendar.getInstance();
+        fromDateCal.setTime(fromDate);
+
+        Calendar toDateCal = Calendar.getInstance();
+        toDateCal.setTime(toDate);
+
+        long differenceInMillis = toDateCal.getTimeInMillis() - fromDateCal.getTimeInMillis();
+        long fourteenDaysInMillis = 14L * 24 * 60 * 60 * 1000;
+
+        if (differenceInMillis > fourteenDaysInMillis) {
+            log.info("Adjusting fromDate: Difference between fromDate ({}) and toDate ({}) exceeds 14 days. Setting fromDate to 14 days before toDate.", fromDate, toDate);
+            toDateCal.add(Calendar.DAY_OF_MONTH, -14);
+            return new Timestamp(toDateCal.getTimeInMillis());
+        }
+
+        return fromDate;
+    }
 
     private String formatDate(Date date) {
         SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
